@@ -1,0 +1,229 @@
+function [data]=rcst(sol,basisx,basisy,curlbasis,nelemq,Meshq,order,unkl,unkh,...
+    unkqi,unkti,glob,nunk,dir,nunki,xt,wt,Mesht,intxi,inteta,intw,...
+    basisxt,basisyt,curlbast,nelemt,edges,rbasisxt,rbasisyt,probdata,coefft,coeffq)
+
+% This function implements a simple version of RCS calculation.
+% There are more accurate methods for doing this, these can be
+% found in the thesis
+% P.D. Ledger An hp adaptive proceedure for electromagnetic scattering
+% problems. Swansea 2002.
+omega=probdata.omega;
+theta=probdata.theta;
+mat=probdata.mat;
+bcscatter=probdata.bcscatter;
+bcmat=probdata.bcmat;
+
+
+
+coord=Mesht.Coordinates;
+intmaq=Meshq.Elements;
+intmat=Mesht.Elements;
+fnum=Mesht.Fnum;
+nip=length(xt);
+
+% 3 bc edge possibilities
+% Edge 1 y=0
+crbasis=[];
+for p=1:nip
+    % edge 1
+    eta=sqrt(3.)*0.5*(xt(p)+1);
+    xi=(-1+xt(p))*(-0.5);
+    ph=curlbasist(order,xi,eta);
+    crbasis=[crbasis, ph];
+end
+% Edge 2 y=1
+for p=1:nip
+    eta=sqrt(3.)*(-0.5)*(xt(p)-1);
+    xi=-(1+xt(p))*0.5;
+    ph=curlbasist(order,xi,eta);
+    crbasis=[crbasis, ph];
+end
+% Edge 3 x=1
+for p=1:nip
+    eta=0.;
+    xi=xt(p);
+    ph=curlbasist(order,xi,eta);
+    crbasis=[crbasis, ph];
+end
+
+nonbc=0;
+rcslabel=[];
+for i=1:nelemt
+    if fnum(i)==bcmat
+        for jj=1:3
+            if edges(glob(i+nelemq,jj),3)==bcscatter
+                nonbc=nonbc+1;
+                rcslabel(nonbc,1)=i;
+                rcslabel(nonbc,2)=jj;
+            end
+        end
+    end
+end
+
+
+norml=[0.5*sqrt(3.) 0.5; -0.5*sqrt(3.) 0.5; 0 -1.]';
+data=zeros(401,2);
+dphi=pi/200;
+
+tetm=probdata.tetm;
+ftetm=1;
+if tetm~=1
+ftetm=-1;
+end
+for non=1:nonbc
+    k=rcslabel(non,1);
+    p=rcslabel(non,2);
+    % elemetal size
+    esize=3;
+    if order > 0
+        esize=(order+1)*(order+2);
+    end
+
+    for l=1:3
+        for kk=1:2
+            xy(l,kk)=coord(intmat(k,l),kk);
+        end
+    end
+
+    for l=1:3
+        for kk=1:2
+            localblendt(l,kk)=coefft(k,l,kk);
+        end
+    end
+
+    % lowest order block
+    for l=1:3
+        lunk(l)=unkl(glob(k+nelemq,l));
+        ldr(l)=dir(k+nelemq,l);
+    end
+    % Higher order block
+    if order> 0
+        for l=1:3
+            for pp=1:order
+                lunk(l+3*pp)=unkh(glob(k+nelemq,l),pp);
+                ldr(l+3*pp)=dir(k+nelemq,l)^(pp-1);
+            end
+        end
+        %Interior block
+        for l=1:order*(order-1)+order-1
+            lunk(3*(order+1)+l)=unkti(k,l);
+            ldr(3*(order+1)+l)=1;
+        end
+    end
+
+    int=0;
+    for kk=1:nip
+
+        if p==1
+            eta=sqrt(3.)*0.5*(xt(kk)+1);
+            xi=(-1+xt(kk))*(-0.5);
+        elseif p==2
+            eta=sqrt(3.)*(-0.5)*(xt(kk)-1);
+            xi=-1*(1+xt(kk))*0.5;
+        else
+            eta=0.;
+            xi=xt(kk);
+        end
+
+        J=maptri(xy,xi,eta,localblendt);
+        detJ=det(J);
+        Jinv=(inv(J))';
+        % Basis
+        %      ph=basisq(order,xi,eta);
+        phx=rbasisxt(:,kk+(nip*(p-1)));
+        phy=rbasisyt(:,kk+(nip*(p-1)));
+        ph=[phx phy];
+        phxy=Jinv*ph';
+        phxy=phxy';
+        %Curl Basis
+        %      cph=curlbasisq(order,xi,eta);
+        cph=crbasis(:,kk+(nip*(p-1)));
+        cphxy=cph./detJ;
+
+        etil=[0;0];
+        cetil=0;
+        for kkk=1:esize
+            if lunk(kkk) ~=0
+                etil(1)=etil(1)+(phxy(kkk,1).*sol(lunk(kkk)).*ldr(kkk));
+                etil(2)=etil(2)+(phxy(kkk,2).*sol(lunk(kkk)).*ldr(kkk));
+                cetil=cetil+(cphxy(kkk).*sol(lunk(kkk)).*ldr(kkk));
+            end
+        end
+        mag=-cetil/sqrt(-1)/omega/ftetm;
+
+        nm=inv(J)'*norml(:,p);
+        nm=nm./norm(nm);
+        if p==1
+            ddgx=(J(1,1)*(-0.5))+(J(1,2)*(sqrt(3.)*0.5));
+            ddgy=(J(2,1)*(-0.5))+(J(2,2)*(sqrt(3.)*0.5));
+            v=sqrt((ddgx^2)+(ddgy^2));
+        elseif p==2
+            ddgx=(J(1,1)*(-0.5))+(J(1,2)*(sqrt(3.)*-0.5));
+            ddgy=(J(2,1)*(-0.5))+(J(2,2)*(sqrt(3.)*-0.5));
+            v=sqrt((ddgx^2)+(ddgy^2));
+        else
+            ddgx=J(1,1);
+            ddgy=J(2,1);
+            v=sqrt((ddgx^2)+(ddgy^2));
+        end
+
+        
+        val(3)=-1*ftetm*((nm(1)*etil(2))-(nm(2)*etil(1)));
+	% (n x curl E) _y
+        val(2)=-nm(1)*mag*ftetm;
+	% (n x curl E) _x        
+        val(1)=nm(2)*mag*ftetm;
+
+        for npec=[-200:200]
+            phi=dphi*npec;
+
+            [xp,yp]=getcoordt(xy,xi,eta,localblendt);
+
+
+            solc=ftetm*(-val(1)*(sin(phi))+val(2)*(cos(phi)))+val(3);
+            fact2=(omega)*((xp*(cos(phi)))+(yp*(sin(phi))));
+            fact3=cos(fact2)+sqrt(-1)*sin(fact2);
+
+            data(201+npec,2)=data(201+npec,2)+(fact3*v*solc*wt(kk));
+            data(201+npec,1)=phi*180/pi;
+        end
+
+    end
+
+end
+data(:,2)=(omega/4).*((abs(data(:,2))).^2);
+
+
+lingeom=probdata.lingeom;
+exactrcs=probdata.exactrcs;
+if exactrcs==1
+dataexact=[];
+% exact RCS available
+for npec=[-200:200]
+phi=dphi*npec;
+%  use the problem file
+fun=probdata.rcsfun;
+arg=probdata.rcsfunarg;
+rcsval=fun(phi,arg);
+dataexact=[dataexact;phi/pi*180 rcsval];
+end
+
+error=norm(data(:,2)-dataexact(:,2))/norm(dataexact(:,2));
+disp(['The error norm is', num2str(error)])
+data=[data(:,1) 10.*log10(data(:,2))];
+figure
+plot(data(:,1),data(:,2),'b')
+hold on
+plot(dataexact(:,1),10*log10(dataexact(:,2)),'r')
+title('RCS')
+legend('Computed','Exact')
+xlabel('angle')
+ylabel('10log10(SW)')
+else
+data=[data(:,1) 10.*log10(data(:,2))];
+figure
+plot(data(:,1),data(:,2),'b')
+title('RCS')
+end
+
+
