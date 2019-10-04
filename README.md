@@ -10,14 +10,6 @@ with edges and corners. A perfectly matched layer (PML) approach is used to trun
 of benchmark problems are included, and the program computes the radar cross section (per unit length) and contours of the
 scattered field. 
 
-For triangular meshes the code calls the Mesh2d matlab mesh generation tool that has been developed by D. Engwirda
-
-D. Engwirda, Locally-optimal Delaunay-refinement and optimisation-based mesh generation, Ph.D. Thesis, School of Mathematics and Statistics, The University of Sydney, http://hdl.handle.net/2123/13148, 2014.
-
-D. Engwirda, Unstructured mesh methods for the Navier-Stokes equations, Honours Thesis, School of Aerospace, Mechanical and
-Mechatronic Engineering, The University of Sydney, 2005.
-https://www.mathworks.com/matlabcentral/fileexchange/25555-mesh2d-delaunay-based-unstructured-mesh-generation
-
 The hierarchic H(curl) conforming finite element basis functions are based on those proposed in
 
 S. Zaglmayr High Order Finite Elements for Electromagnetic Field Computation, PhD Thesis, Johannes Kepler University Linz,
@@ -31,3 +23,11 @@ University, UK 2002.
 P.D. Ledger K. Morgan, O. Hassan and N.P. Weatherill. Arbitrary order edge elements for electromag- netic scattering problems
 using hybrid meshes and a PML. International Journal of Numerical Methods in Engineering, 2002; 55: 339–358.
 https://doi.org/10.1002/nme.501
+
+For triangular meshes the code calls the Mesh2d matlab mesh generation tool that has been developed by D. Engwirda
+
+D. Engwirda, Locally-optimal Delaunay-refinement and optimisation-based mesh generation, Ph.D. Thesis, School of Mathematics and Statistics, The University of Sydney, http://hdl.handle.net/2123/13148, 2014.
+
+D. Engwirda, Unstructured mesh methods for the Navier-Stokes equations, Honours Thesis, School of Aerospace, Mechanical and
+Mechatronic Engineering, The University of Sydney, 2005.
+https://www.mathworks.com/matlabcentral/fileexchange/25555-mesh2d-delaunay-based-unstructured-mesh-generation
